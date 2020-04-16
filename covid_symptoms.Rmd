@@ -1,0 +1,123 @@
+---
+title: "COVID Upset Plot"
+author:
+- name: Kieran Healy
+  affiliation: Duke University
+  email: kjhealy@soc.duke.edu
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+crossrefYaml: "config/pandoc-crossref-settings.yaml"
+output:
+  html_document:
+  pdf_document: 
+    md_extensions: +simple_tables+table_captions+yaml_metadata_block+smart
+    template: /Users/kjhealy/.pandoc/templates/rmd-latex.template
+    pandoc_args: [
+      "--bibliography", "/Users/kjhealy/Documents/bibs/socbib-pandoc.bib",
+      "--filter", "pandoc-crossref",
+      "--filter", "pandoc-citeproc",
+      "--csl", "/Users/kjhealy/.pandoc/csl/ajps.csl"
+      ]      
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+                      dev=c("png","pdf"),
+                      fig.path = "figures/",
+                      fig.width=14,
+                      fig.height=7,
+                      dpi=300,
+                      fig.show='hold',
+                      fig.lp="fig:",
+                      cache=TRUE,
+                      par=TRUE,
+                      echo=TRUE,
+                      warning = FALSE,
+                      results="show",
+                      message=TRUE)
+
+knit_hooks$set(par = function(before, options, envir){
+    if (before && options$fig.show != 'none') par(mar = c(4,4,.1,.1), cex.lab = .95, cex.axis = .9, mgp = c(2, .7, 0), tcl = -.3)
+}, crop=hook_pdfcrop)
+
+opts_knit$set(kfigr.prefix=TRUE,
+              kfigr.link=FALSE)
+
+```
+
+```{r libraries}
+
+library(tidyverse)
+library(here)
+library(janitor)
+library(socviz)
+library(ggrepel)
+
+## --------------------------------------------------------------------
+## Custom font and theme, omit if you don't have the myriad library
+## (https://github.com/kjhealy/myriad) and associated Adobe fonts.
+## --------------------------------------------------------------------
+library(showtext)
+showtext_auto()
+library(myriad)
+import_myriad_semi()
+
+theme_set(theme_myriad_semi())
+
+### --------------------------------------------------------------------
+
+```
+
+```{r}
+symptoms <- c("Anosmia", "Cough", "Fatigue", "Diarrhea", "Breath", "Fever")
+names(symptoms) <- symptoms
+
+
+dat <- readxl::read_xlsx("data/symptoms.xlsx") 
+dat %>% print(n = nrow(dat))
+
+
+subsets <- dat$combination
+
+symptom_mat <- map_dfc(subsets, str_detect, symptoms) %>%
+    data.frame() %>%
+    t() %>%
+    as_tibble()
+
+colnames(symptom_mat)  <- symptoms
+
+symptom_mat$count <- dat$count
+
+symptom_mat %>% print(n = nrow(symptom_mat))
+
+```
+
+```{r}
+indvs <- symptom_mat %>%
+    uncount(count) 
+
+indvs
+```
+
+```{r covid-upset-plot, fig.height=8, fig.width=14, layout="l-body-fullwidth"}
+library(ComplexUpset)
+
+upset(indvs, symptoms, 
+      name="Symptom Groupings by Frequency. Total pool is 1,764 individuals.", 
+      min_size = 0,
+      width_ratio = 0.125) +
+    labs(title = "Co-Occurence of COVID-19 Symptoms",
+         caption = "Data: covid.joinzoe.com/us | Graph: @kjhealy")
+
+
+upset(indvs, symptoms, 
+      name="Symptom Groupings by Frequency. Total pool is 1,764 individuals.", 
+      min_size = 0,
+      width_ratio = 0.125, 
+      sort_intersections_by = "ratio"
+      ) +
+    labs(title = "Co-Occurence of COVID-19 Symptoms",
+         caption = "Data: covid.joinzoe.com/us | Graph: @kjhealy")
+
+
+```
+
